@@ -49,7 +49,12 @@ class BookingManager:
         if active_count > 0:
             return {'success': False, 'message': 'You already have an active booking. Please cancel it first.'}
         
-        # Parse booking datetime
+        # Check if user has scheduled bookings
+        scheduled_query = "SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'Scheduled'"
+        scheduled_count = self.db.fetch_one(scheduled_query, (user_id,))[0]
+        
+        # Determine booking status and parse datetime
+        is_scheduled = False
         if booking_date and booking_time:
             try:
                 booking_datetime = datetime.strptime(f"{booking_date} {booking_time}", "%Y-%m-%d %H:%M")
@@ -58,6 +63,13 @@ class BookingManager:
                 current_time = datetime.now()
                 if booking_datetime < current_time:
                     return {'success': False, 'message': 'Booking time cannot be in the past.'}
+                
+                # Check if booking is for future (more than 5 minutes ahead)
+                time_diff = (booking_datetime - current_time).total_seconds()
+                if time_diff > 300:  # 5 minutes
+                    is_scheduled = True
+                    if scheduled_count > 0:
+                        return {'success': False, 'message': 'You already have a scheduled booking. Please cancel it first.'}
                 
                 booking_time_str = booking_datetime.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError:
@@ -69,27 +81,34 @@ class BookingManager:
         # Get package details
         package_info = self.PACKAGES.get(package, self.PACKAGES['hourly'])
         
+        # Determine status based on booking time
+        booking_status = 'Scheduled' if is_scheduled else 'Active'
+        
         # Create booking with package info
         insert_query = """
             INSERT INTO bookings (user_id, slot_id, vehicle_number, booking_time, status, package_type, package_cost, expected_duration)
-            VALUES (?, ?, ?, ?, 'Active', ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         success = self.db.execute_query(insert_query, (
             user_id, slot_id, vehicle_number, booking_time_str, 
-            package_info['name'], package_info['rate'], package_info['duration_hours']
+            booking_status, package_info['name'], package_info['rate'], package_info['duration_hours']
         ))
         
         if success:
-            # Update slot status to Occupied
-            update_query = "UPDATE slots SET status = 'Occupied' WHERE id = ?"
-            self.db.execute_query(update_query, (slot_id,))
+            # Update slot status to Occupied only for immediate bookings
+            if not is_scheduled:
+                update_query = "UPDATE slots SET status = 'Occupied' WHERE id = ?"
+                self.db.execute_query(update_query, (slot_id,))
             
+            status_msg = "scheduled" if is_scheduled else "booked"
             return {
                 'success': True,
-                'message': f'Slot {slot[1]} booked successfully!',
+                'message': f'Slot {slot[1]} {status_msg} successfully!',
                 'slot_number': slot[1],
                 'package': package_info['name'],
-                'cost': package_info['rate']
+                'cost': package_info['rate'],
+                'is_scheduled': is_scheduled,
+                'booking_time': booking_time_str
             }
         
         return {'success': False, 'message': 'Booking failed. Please try again.'}
@@ -217,13 +236,80 @@ class BookingManager:
         total_query = "SELECT COUNT(*) FROM bookings"
         active_query = "SELECT COUNT(*) FROM bookings WHERE status = 'Active'"
         completed_query = "SELECT COUNT(*) FROM bookings WHERE status = 'Completed'"
+        scheduled_query = "SELECT COUNT(*) FROM bookings WHERE status = 'Scheduled'"
+        cancelled_query = "SELECT COUNT(*) FROM bookings WHERE status = 'Cancelled'"
         
         total = self.db.fetch_one(total_query)[0]
         active = self.db.fetch_one(active_query)[0]
         completed = self.db.fetch_one(completed_query)[0]
+        scheduled = self.db.fetch_one(scheduled_query)[0]
+        cancelled = self.db.fetch_one(cancelled_query)[0]
         
         return {
             'total': total,
             'active': active,
-            'completed': completed
+            'completed': completed,
+            'scheduled': scheduled,
+            'cancelled': cancelled
         }
+    
+    def get_scheduled_bookings(self, user_id=None):
+        """Get scheduled bookings for a user or all users (admin)"""
+        if user_id:
+            query = """
+                SELECT b.id, s.slot_number, s.slot_type, b.vehicle_number, 
+                       b.booking_time, b.package_type, b.package_cost, s.floor
+                FROM bookings b
+                JOIN slots s ON b.slot_id = s.id
+                WHERE b.user_id = ? AND b.status = 'Scheduled'
+                ORDER BY b.booking_time ASC
+            """
+            return self.db.fetch_all(query, (user_id,))
+        else:
+            # Admin view
+            query = """
+                SELECT b.id, u.username, s.slot_number, b.vehicle_number, 
+                       b.booking_time, b.package_type
+                FROM bookings b
+                JOIN users u ON b.user_id = u.id
+                JOIN slots s ON b.slot_id = s.id
+                WHERE b.status = 'Scheduled'
+                ORDER BY b.booking_time ASC
+            """
+            return self.db.fetch_all(query)
+    
+    def cancel_scheduled_booking(self, booking_id, user_id):
+        """Cancel a scheduled booking"""
+        # Get booking details
+        booking_query = """
+            SELECT b.id, b.user_id, s.slot_number, b.booking_time, b.status
+            FROM bookings b
+            JOIN slots s ON b.slot_id = s.id
+            WHERE b.id = ? AND b.user_id = ? AND b.status = 'Scheduled'
+        """
+        booking = self.db.fetch_one(booking_query, (booking_id, user_id))
+        
+        if not booking:
+            return {'success': False, 'message': 'Scheduled booking not found or already cancelled.'}
+        
+        slot_number = booking[2]
+        booking_time = booking[3]
+        
+        # Mark booking as cancelled instead of deleting
+        cancel_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        update_query = """
+            UPDATE bookings 
+            SET status = 'Cancelled', checkout_time = ? 
+            WHERE id = ?
+        """
+        success = self.db.execute_query(update_query, (cancel_time, booking_id))
+        
+        if success:
+            return {
+                'success': True,
+                'message': f'Scheduled booking for slot {slot_number} cancelled successfully!',
+                'slot_number': slot_number
+            }
+        
+        return {'success': False, 'message': 'Failed to cancel scheduled booking.'}
+

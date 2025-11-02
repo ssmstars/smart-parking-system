@@ -86,6 +86,58 @@
         </div>
     </div>
 
+    <!-- Scheduled Bookings -->
+    {% if scheduled_bookings %}
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5><i class="bi bi-calendar-event"></i> Scheduled Bookings</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Slot</th>
+                                <th>Floor</th>
+                                <th>Vehicle</th>
+                                <th>Scheduled Time</th>
+                                <th>Package</th>
+                                <th>Cost</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scheduled in scheduled_bookings %}
+                            <tr>
+                                <td><span class="badge bg-info">{{ scheduled.slot_number }}</span></td>
+                                <td>{{ scheduled.floor }}</td>
+                                <td>{{ scheduled.vehicle_number }}</td>
+                                <td>{{ scheduled.booking_time }}</td>
+                                <td>{{ scheduled.package_type }}</td>
+                                <td>₹{{ scheduled.package_cost }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('cancel_scheduled', booking_id=scheduled.id) }}" 
+                                          style="display:inline;" 
+                                          onsubmit="return confirm('Cancel this scheduled booking?');">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle"></i> Scheduled bookings can be cancelled anytime before the scheduled time.
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Quick Actions -->
     <div class="col-md-6 mb-4">
         <div class="card">

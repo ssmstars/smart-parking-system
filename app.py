@@ -221,11 +221,28 @@ def user_dashboard():
             'cost': cost
         }
     
+    # Get scheduled bookings
+    scheduled_bookings = booking_manager.get_scheduled_bookings(user_id)
+    formatted_scheduled = []
+    for booking in scheduled_bookings:
+        formatted_scheduled.append({
+            'id': booking[0],
+            'slot_number': booking[1],
+            'slot_type': booking[2],
+            'vehicle_number': booking[3],
+            'booking_time': Helper.format_datetime(booking[4]),
+            'booking_time_raw': booking[4],
+            'package_type': booking[5],
+            'package_cost': booking[6],
+            'floor': booking[7]
+        })
+    
     # Get available slots count
     available_slots = slot_manager.get_available_slots()
     
     return render_template('user/dashboard.html', 
                          booking=booking_info,
+                         scheduled_bookings=formatted_scheduled,
                          available_count=len(available_slots))
 
 
@@ -362,6 +379,9 @@ def user_bookings():
     user_id = session.get('user_id')
     bookings = booking_manager.get_user_bookings(user_id)
     
+    # Get scheduled bookings
+    scheduled = booking_manager.get_scheduled_bookings(user_id)
+    
     # Format bookings
     formatted_bookings = []
     for booking in bookings:
@@ -375,7 +395,44 @@ def user_bookings():
             'status': booking[6]
         })
     
-    return render_template('user/bookings.html', bookings=formatted_bookings)
+    # Format scheduled bookings
+    formatted_scheduled = []
+    for booking in scheduled:
+        formatted_scheduled.append({
+            'id': booking[0],
+            'slot_number': booking[1],
+            'slot_type': booking[2],
+            'vehicle_number': booking[3],
+            'booking_time': Helper.format_datetime(booking[4]),
+            'booking_time_raw': booking[4],
+            'package_type': booking[5],
+            'package_cost': booking[6],
+            'floor': booking[7]
+        })
+    
+    return render_template('user/bookings.html', 
+                         bookings=formatted_bookings,
+                         scheduled_bookings=formatted_scheduled)
+
+
+@app.route('/user/cancel-scheduled/<int:booking_id>', methods=['POST'])
+@login_required
+def cancel_scheduled(booking_id):
+    """Cancel a scheduled booking"""
+    try:
+        user_id = session.get('user_id')
+        result = booking_manager.cancel_scheduled_booking(booking_id, user_id)
+        
+        if result['success']:
+            flash(result['message'], 'success')
+        else:
+            flash(result['message'], 'danger')
+        
+        return redirect(url_for('user_bookings'))
+    except Exception as e:
+        print(f"ERROR in cancel_scheduled: {str(e)}")
+        flash(f'Error cancelling scheduled booking: {str(e)}', 'danger')
+        return redirect(url_for('user_bookings'))
 
 
 # API Routes for AJAX

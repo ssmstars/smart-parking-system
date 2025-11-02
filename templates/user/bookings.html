@@ -3,11 +3,61 @@
 {% block title %}My Bookings{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-clock-history"></i> My Booking History</h2>
+<h2 class="mb-4"><i class="bi bi-clock-history"></i> My Bookings</h2>
 
+<!-- Scheduled Bookings Section -->
+{% if scheduled_bookings %}
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5><i class="bi bi-calendar-event"></i> Scheduled Bookings</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Slot</th>
+                        <th>Type</th>
+                        <th>Vehicle</th>
+                        <th>Scheduled For</th>
+                        <th>Package</th>
+                        <th>Cost</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scheduled in scheduled_bookings %}
+                        <tr class="table-info">
+                            <td>{{ scheduled.id }}</td>
+                            <td><strong>{{ scheduled.slot_number }}</strong></td>
+                            <td>{{ scheduled.slot_type }}</td>
+                            <td>{{ scheduled.vehicle_number }}</td>
+                            <td>{{ scheduled.booking_time }}</td>
+                            <td>{{ scheduled.package_type }}</td>
+                            <td>₹{{ scheduled.package_cost }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('cancel_scheduled', booking_id=scheduled.id) }}" 
+                                      style="display:inline;" 
+                                      onsubmit="return confirm('Cancel this scheduled booking?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-x-circle"></i> Cancel
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Booking History Section -->
 <div class="card">
     <div class="card-header bg-primary text-white">
-        <h5><i class="bi bi-list-ul"></i> All Bookings</h5>
+        <h5><i class="bi bi-list-ul"></i> Booking History</h5>
     </div>
     <div class="card-body">
         {% if bookings %}
@@ -26,7 +76,7 @@
                     </thead>
                     <tbody>
                         {% for booking in bookings %}
-                            <tr class="{% if booking.status == 'Active' %}table-warning{% else %}table-success{% endif %}">
+                            <tr class="{% if booking.status == 'Active' %}table-warning{% elif booking.status == 'Scheduled' %}table-info{% elif booking.status == 'Cancelled' %}table-danger{% else %}table-success{% endif %}">
                                 <td>{{ booking.id }}</td>
                                 <td><strong>{{ booking.slot_number }}</strong></td>
                                 <td>{{ booking.slot_type }}</td>
@@ -36,6 +86,10 @@
                                 <td>
                                     {% if booking.status == 'Active' %}
                                         <span class="badge bg-warning">{{ booking.status }}</span>
+                                    {% elif booking.status == 'Scheduled' %}
+                                        <span class="badge bg-info">{{ booking.status }}</span>
+                                    {% elif booking.status == 'Cancelled' %}
+                                        <span class="badge bg-danger">{{ booking.status }}</span>
                                     {% else %}
                                         <span class="badge bg-success">{{ booking.status }}</span>
                                     {% endif %}
