@@ -315,16 +315,31 @@ def book_slot():
 @login_required
 def cancel_booking(booking_id):
     """Cancel/checkout booking"""
-    user_id = session.get('user_id')
-    
-    result = booking_manager.cancel_booking(booking_id, user_id)
-    
-    if result['success']:
-        flash(f"{result['message']} Duration: {result['duration']} hours, Cost: ₹{result['cost']}", 'success')
-    else:
-        flash(result['message'], 'danger')
-    
-    return redirect(url_for('user_dashboard'))
+    try:
+        user_id = session.get('user_id')
+        
+        print(f"DEBUG: Cancel booking attempt - User: {user_id}, Booking ID: {booking_id}")
+        
+        result = booking_manager.cancel_booking(booking_id, user_id)
+        
+        print(f"DEBUG: Cancel result - {result}")
+        
+        if result['success']:
+            # Display comprehensive checkout information
+            message = f"{result['message']} Duration: {result['duration']:.2f} hours, Final Cost: ₹{result['actual_cost']:.2f}"
+            if result.get('package_cost'):
+                message += f" (Package: {result['package']} - ₹{result['package_cost']:.2f})"
+            flash(message, 'success')
+        else:
+            flash(result['message'], 'danger')
+        
+        return redirect(url_for('user_dashboard'))
+    except Exception as e:
+        print(f"ERROR in cancel_booking: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Checkout error: {str(e)}', 'danger')
+        return redirect(url_for('user_dashboard'))
 
 
 @app.route('/user/bookings')

@@ -112,8 +112,8 @@ class BookingManager:
         slot_number = booking[3]
         booking_time = booking[4]
         package_type = booking[5]
-        package_cost = booking[6]
-        expected_duration = booking[7]
+        package_cost = booking[6] if booking[6] else 50.0
+        expected_duration = booking[7] if booking[7] else 1.0
         
         # Calculate duration and cost using system time
         checkout_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -122,6 +122,10 @@ class BookingManager:
         # Calculate actual cost (either package cost or hourly rate, whichever is higher for fairness)
         hourly_cost = Helper.calculate_cost(duration)
         actual_cost = max(package_cost, hourly_cost) if duration > expected_duration else package_cost
+        
+        # Round to 2 decimal places
+        actual_cost = round(actual_cost, 2)
+        duration = round(duration, 2)
         
         # Update booking status with actual cost
         update_booking = """
