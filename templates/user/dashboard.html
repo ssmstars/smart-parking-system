@@ -47,13 +47,21 @@
                                 </tr>
                                 <tr>
                                     <th>Duration:</th>
-                                    <td><strong>{{ booking.duration }} hours</strong></td>
+                                    <td>
+                                        <strong id="duration-display">{{ booking.duration }} hours</strong>
+                                        <div class="text-muted small" id="duration-detailed"></div>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <th>Current Cost:</th>
-                                    <td class="text-success"><strong class="fs-5">₹{{ booking.cost }}</strong></td>
+                                    <td class="text-success">
+                                        <strong class="fs-5" id="cost-display">₹{{ booking.cost }}</strong>
+                                    </td>
                                 </tr>
                             </table>
+                            <div class="alert alert-info small">
+                                <i class="bi bi-info-circle"></i> Duration and cost update every 30 seconds
+                            </div>
                         </div>
                     </div>
                     <div class="text-center mt-3">
@@ -105,4 +113,51 @@
         </div>
     </div>
 </div>
+
+{% if booking %}
+<script>
+// Store booking start time
+const bookingStartTime = new Date("{{ booking.booking_time_raw }}").getTime();
+const ratePerHour = 50;
+
+function updateDurationAndCost() {
+    const now = new Date().getTime();
+    const diffMs = now - bookingStartTime;
+    
+    // Calculate time components
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    // Calculate hours as decimal
+    const hoursDecimal = (totalSeconds / 3600).toFixed(2);
+    
+    // Build detailed display
+    let detailedDisplay = '';
+    if (hours > 0) {
+        detailedDisplay += hours + 'h ';
+    }
+    if (minutes > 0 || hours > 0) {
+        detailedDisplay += minutes + 'm ';
+    }
+    detailedDisplay += seconds + 's';
+    
+    // Calculate cost (minimum charge is one hour)
+    const cost = hoursDecimal < 1 ? ratePerHour : Math.round(hoursDecimal * ratePerHour * 100) / 100;
+    
+    // Update display
+    document.getElementById('duration-display').textContent = hoursDecimal + ' hours';
+    document.getElementById('duration-detailed').textContent = '(' + detailedDisplay.trim() + ')';
+    document.getElementById('cost-display').textContent = '₹' + cost.toFixed(2);
+}
+
+// Update immediately
+updateDurationAndCost();
+
+// Update every 1 second for smooth countdown
+setInterval(updateDurationAndCost, 1000);
+</script>
+{% endif %}
+
 {% endblock %}

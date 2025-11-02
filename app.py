@@ -174,7 +174,15 @@ def admin_bookings():
     filter_type = request.args.get('filter', 'all')
     
     if filter_type == 'active':
-        bookings = booking_manager.get_active_bookings()
+        bookings_raw = booking_manager.get_active_bookings()
+        # Add duration calculation for active bookings
+        bookings = []
+        for booking in bookings_raw:
+            # booking structure: id, username, phone, slot_number, vehicle_number, booking_time
+            duration = Helper.calculate_duration(booking[5])
+            duration_detailed = Helper.calculate_duration_detailed(booking[5])
+            # Add duration as 7th element
+            bookings.append(booking + (duration_detailed['display'],))
     else:
         bookings = booking_manager.get_all_bookings()
     
@@ -187,9 +195,13 @@ def admin_bookings():
 def user_dashboard():
     """User dashboard"""
     user_id = session.get('user_id')
+    username = session.get('username')
+    
+    print(f"DEBUG: Dashboard accessed by User ID: {user_id}, Username: {username}")
     
     # Get active booking
     active_booking = booking_manager.get_active_booking(user_id)
+    print(f"DEBUG: Active booking for user {user_id}: {active_booking}")
     
     # Calculate duration and cost if active booking exists
     booking_info = None
@@ -203,6 +215,7 @@ def user_dashboard():
             'slot_type': active_booking[2],
             'vehicle_number': active_booking[3],
             'booking_time': Helper.format_datetime(active_booking[4]),
+            'booking_time_raw': active_booking[4],  # For JavaScript
             'floor': active_booking[5],
             'duration': duration,
             'cost': cost
@@ -366,6 +379,36 @@ def user_bookings():
 
 
 # API Routes for AJAX
+# API Routes for AJAX
+@app.route('/api/booking/active')
+@login_required
+def get_active_booking_api():
+    """Get active booking data (AJAX)"""
+    user_id = session.get('user_id')
+    active_booking = booking_manager.get_active_booking(user_id)
+    
+    if active_booking:
+        duration = Helper.calculate_duration(active_booking[4])
+        cost = Helper.calculate_cost(duration)
+        
+        return jsonify({
+            'success': True,
+            'booking': {
+                'id': active_booking[0],
+                'slot_number': active_booking[1],
+                'slot_type': active_booking[2],
+                'vehicle_number': active_booking[3],
+                'booking_time': active_booking[4],
+                'booking_time_formatted': Helper.format_datetime(active_booking[4]),
+                'floor': active_booking[5],
+                'duration': duration,
+                'cost': cost
+            }
+        })
+    else:
+        return jsonify({'success': False, 'message': 'No active booking'})
+
+
 @app.route('/api/slots/floor/<int:floor>')
 @login_required
 def get_slots_by_floor(floor):
