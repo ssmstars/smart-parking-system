@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Book Parking Slot{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-plus-circle"></i> Book Parking Slot</h2>
+
+<div class="row">
+    <!-- Filter Section -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-funnel"></i> Filter by Floor</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="floor_select" class="form-label">Select Floor:</label>
+                        <select class="form-select form-select-lg" id="floor_select">
+                            <option value="all">All Floors</option>
+                            {% for floor in floors %}
+                                <option value="{{ floor }}">Floor {{ floor }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Total Available:</label>
+                        <h3 class="text-success" id="available_count">
+                            {{ slots_by_floor.values()|map('length')|sum }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Form -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5><i class="bi bi-car-front-fill"></i> Booking Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('book_slot') }}" id="booking_form">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Quick Tip:</strong> Select "Now" for immediate parking or "Schedule Later" to book for a future date/time.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="slot_id" class="form-label"><strong>Selected Slot:</strong></label>
+                                <input type="text" class="form-control form-control-lg" id="selected_slot_display" 
+                                       placeholder="Click on a slot below to select" readonly>
+                                <input type="hidden" name="slot_id" id="slot_id" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="vehicle_number" class="form-label"><strong>Vehicle Number:</strong></label>
+                                {% if saved_vehicle %}
+                                <div class="input-group">
+                                    <select class="form-select form-select-lg" id="vehicle_select" onchange="updateVehicleNumber()">
+                                        <option value="{{ saved_vehicle }}" selected>{{ saved_vehicle }} (Saved)</option>
+                                        <option value="custom">Enter New Vehicle Number</option>
+                                    </select>
+                                </div>
+                                <input type="text" class="form-control form-control-lg mt-2" id="vehicle_number" 
+                                       name="vehicle_number" value="{{ saved_vehicle }}" required 
+                                       style="text-transform: uppercase;" readonly>
+                                {% else %}
+                                <input type="text" class="form-control form-control-lg" id="vehicle_number" 
+                                       name="vehicle_number" placeholder="e.g., MH12AB1234" required 
+                                       style="text-transform: uppercase;">
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="package" class="form-label"><strong>Parking Package:</strong></label>
+                                <select class="form-select form-select-lg" name="package" id="package" required>
+                                    <option value="hourly" selected>⏱️ Hourly - ₹50/hour</option>
+                                    <option value="half_day">🌅 Half Day (6 hrs) - ₹250</option>
+                                    <option value="full_day">🌞 Full Day (24 hrs) - ₹400</option>
+                                    <option value="weekly">📅 Weekly (7 days) - ₹2,500</option>
+                                    <option value="monthly">📆 Monthly (30 days) - ₹8,000</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="booking_time_option" class="form-label"><strong>Start Time:</strong></label>
+                                <select class="form-select form-select-lg" name="booking_time_option" id="booking_time_option" required>
+                                    <option value="now" selected>🚀 Now (Immediate)</option>
+                                    <option value="custom">📅 Schedule Later</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Custom Date/Time Section (Hidden by default) -->
+                    <div class="row" id="custom_datetime_section" style="display: none;">
+                        <div class="col-md-12">
+                            <div class="alert alert-warning">
+                                <i class="bi bi-calendar-event"></i> 
+                                <strong>Schedule your parking:</strong> Choose your preferred date and time below.
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="booking_date" class="form-label"><strong>Booking Date:</strong></label>
+                                <input type="date" class="form-control form-control-lg" 
+                                       name="booking_date" id="booking_date">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="booking_time" class="form-label"><strong>Booking Time:</strong></label>
+                                <input type="time" class="form-control form-control-lg" 
+                                       name="booking_time" id="booking_time">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <button type="submit" class="btn btn-success btn-lg px-5" id="book_btn" disabled>
+                            <i class="bi bi-check-circle"></i> Confirm Booking
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Slots Display -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5><i class="bi bi-grid-3x3-gap"></i> Available Parking Slots</h5>
+            </div>
+            <div class="card-body">
+                <div id="slots_container">
+                    {% for floor, slots in slots_by_floor.items() %}
+                        <div class="floor-section" data-floor="{{ floor }}">
+                            <h4 class="mb-3">
+                                <i class="bi bi-building"></i> Floor {{ floor }}
+                                <span class="badge bg-success">{{ slots|length }} available</span>
+                            </h4>
+                            <div class="row">
+                                {% for slot in slots %}
+                                    <div class="col-md-3 col-lg-2 mb-3">
+                                        <div class="slot-card available text-center" 
+                                             data-slot-id="{{ slot.id }}" 
+                                             data-slot-number="{{ slot.slot_number }}"
+                                             data-slot-type="{{ slot.slot_type }}"
+                                             data-floor="{{ slot.floor }}"
+                                             onclick="selectSlot(this)">
+                                            <div class="mb-2">
+                                                <i class="bi bi-p-square-fill text-success" style="font-size: 2rem;"></i>
+                                            </div>
+                                            <h5 class="mb-1">{{ slot.slot_number }}</h5>
+                                            <small class="text-muted">{{ slot.slot_type }}</small>
+                                            <div class="mt-2">
+                                                <span class="badge bg-success">Available</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <hr>
+                        </div>
+                    {% endfor %}
+
+                    {% if not slots_by_floor %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #ffc107;"></i>
+                            <h4 class="mt-3">No Slots Available</h4>
+                            <p class="text-muted">All parking slots are currently occupied. Please check back later.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedSlotCard = null;
+
+// Initialize date/time inputs with current date/time
+window.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    const dateInput = document.getElementById('booking_date');
+    const timeInput = document.getElementById('booking_time');
+    
+    // Set minimum date to today
+    const today = now.toISOString().split('T')[0];
+    dateInput.setAttribute('min', today);
+    dateInput.value = today;
+    
+    // Set current time
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    timeInput.value = `${hours}:${minutes}`;
+});
+
+// Toggle custom date/time section
+document.getElementById('booking_time_option').addEventListener('change', function() {
+    const customSection = document.getElementById('custom_datetime_section');
+    const dateInput = document.getElementById('booking_date');
+    const timeInput = document.getElementById('booking_time');
+    
+    if (this.value === 'custom') {
+        customSection.style.display = 'block';
+        dateInput.required = true;
+        timeInput.required = true;
+    } else {
+        customSection.style.display = 'none';
+        dateInput.required = false;
+        timeInput.required = false;
+    }
+});
+
+// Update vehicle number based on selection
+function updateVehicleNumber() {
+    const vehicleSelect = document.getElementById('vehicle_select');
+    const vehicleInput = document.getElementById('vehicle_number');
+    
+    if (vehicleSelect && vehicleInput) {
+        if (vehicleSelect.value === 'custom') {
+            vehicleInput.value = '';
+            vehicleInput.removeAttribute('readonly');
+            vehicleInput.focus();
+        } else {
+            vehicleInput.value = vehicleSelect.value;
+            vehicleInput.setAttribute('readonly', 'readonly');
+        }
+    }
+}
+
+function selectSlot(card) {
+    // Remove previous selection
+    if (selectedSlotCard) {
+        selectedSlotCard.classList.remove('selected');
+    }
+    
+    // Add new selection
+    card.classList.add('selected');
+    selectedSlotCard = card;
+    
+    // Get slot data
+    const slotId = card.dataset.slotId;
+    const slotNumber = card.dataset.slotNumber;
+    const slotType = card.dataset.slotType;
+    const floor = card.dataset.floor;
+    
+    // Update form
+    document.getElementById('slot_id').value = slotId;
+    document.getElementById('selected_slot_display').value = 
+        `${slotNumber} (${slotType}) - Floor ${floor}`;
+    document.getElementById('book_btn').disabled = false;
+    
+    // Scroll to form
+    document.getElementById('booking_form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Floor filter
+document.getElementById('floor_select').addEventListener('change', function() {
+    const selectedFloor = this.value;
+    const floorSections = document.querySelectorAll('.floor-section');
+    let visibleCount = 0;
+    
+    floorSections.forEach(section => {
+        if (selectedFloor === 'all' || section.dataset.floor === selectedFloor) {
+            section.style.display = 'block';
+            visibleCount += section.querySelectorAll('.slot-card').length;
+        } else {
+            section.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('available_count').textContent = visibleCount;
+});
+
+// Form validation
+document.getElementById('booking_form').addEventListener('submit', function(e) {
+    if (!document.getElementById('slot_id').value) {
+        e.preventDefault();
+        alert('Please select a parking slot');
+    }
+});
+</script>
+{% endblock %}

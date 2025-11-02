@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-speedometer2"></i> Admin Dashboard</h2>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card total">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0">{{ stats.total }}</h3>
+                    <p class="mb-0">Total Slots</p>
+                </div>
+                <i class="bi bi-grid-3x3-gap" style="font-size: 3rem; opacity: 0.5;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card available">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0">{{ stats.available }}</h3>
+                    <p class="mb-0">Available</p>
+                </div>
+                <i class="bi bi-check-circle-fill" style="font-size: 3rem; opacity: 0.5;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card occupied">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0">{{ stats.occupied }}</h3>
+                    <p class="mb-0">Occupied</p>
+                </div>
+                <i class="bi bi-car-front-fill" style="font-size: 3rem; opacity: 0.5;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card active">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0">{{ booking_stats.active }}</h3>
+                    <p class="mb-0">Active Bookings</p>
+                </div>
+                <i class="bi bi-calendar-check-fill" style="font-size: 3rem; opacity: 0.5;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Occupancy -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-bar-chart-fill"></i> Occupancy Rate</h5>
+            </div>
+            <div class="card-body">
+                <div class="progress" style="height: 30px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: {{ stats.occupancy_rate }}%;" 
+                         aria-valuenow="{{ stats.occupancy_rate }}" 
+                         aria-valuemin="0" aria-valuemax="100">
+                        {{ stats.occupancy_rate }}%
+                    </div>
+                </div>
+                <p class="mt-3 text-center text-muted">
+                    {{ stats.occupied }} of {{ stats.total }} slots occupied
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5><i class="bi bi-graph-up"></i> Booking Statistics</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Total Bookings:</th>
+                        <td class="text-end"><strong>{{ booking_stats.total }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Active:</th>
+                        <td class="text-end"><strong class="text-warning">{{ booking_stats.active }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Completed:</th>
+                        <td class="text-end"><strong class="text-success">{{ booking_stats.completed }}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-grid-3x3-gap text-primary" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">Manage Slots</h5>
+                <p class="text-muted">Add, edit, or delete parking slots</p>
+                <a href="{{ url_for('admin_slots') }}" class="btn btn-primary">
+                    <i class="bi bi-arrow-right-circle"></i> Go to Slots
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-check text-success" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">View Bookings</h5>
+                <p class="text-muted">Monitor all parking bookings</p>
+                <a href="{{ url_for('admin_bookings') }}" class="btn btn-success">
+                    <i class="bi bi-arrow-right-circle"></i> View Bookings
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="bi bi-plus-circle text-info" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">Add New Slot</h5>
+                <p class="text-muted">Create new parking slots</p>
+                <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addSlotModal">
+                    <i class="bi bi-plus-lg"></i> Add Slot
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Slot Modal -->
+<div class="modal fade" id="addSlotModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add New Parking Slot</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_slot') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="slot_number" class="form-label">Slot Number</label>
+                        <input type="text" class="form-control" id="slot_number" name="slot_number" 
+                               placeholder="e.g., A1, B2, VIP1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="slot_type" class="form-label">Slot Type</label>
+                        <select class="form-select" id="slot_type" name="slot_type" required>
+                            <option value="Regular">Regular</option>
+                            <option value="VIP">VIP</option>
+                            <option value="Handicapped">Handicapped</option>
+                            <option value="EV Charging">EV Charging</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="floor" class="form-label">Floor</label>
+                        <select class="form-select" id="floor" name="floor" required>
+                            {% for i in range(1, 11) %}
+                                <option value="{{ i }}">Floor {{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Add Slot
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

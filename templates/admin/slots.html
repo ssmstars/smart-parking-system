@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Slots - Admin{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-grid-3x3-gap"></i> Manage Parking Slots</h2>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSlotModal">
+            <i class="bi bi-plus-circle"></i> Add New Slot
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5><i class="bi bi-list"></i> All Parking Slots</h5>
+    </div>
+    <div class="card-body">
+        {% if slots %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Slot Number</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Floor</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for slot in slots %}
+                            <tr class="{% if slot[3] == 'Available' %}table-success{% else %}table-danger{% endif %}">
+                                <td>{{ slot[0] }}</td>
+                                <td><strong>{{ slot[1] }}</strong></td>
+                                <td>{{ slot[2] }}</td>
+                                <td>
+                                    {% if slot[3] == 'Available' %}
+                                        <span class="badge bg-success">{{ slot[3] }}</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{{ slot[3] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ slot[4] }}</td>
+                                <td>{{ slot[5] }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('delete_slot', slot_id=slot[0]) }}" 
+                                          style="display: inline;"
+                                          onsubmit="return confirm('Are you sure you want to delete slot {{ slot[1] }}?');">
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3 text-muted">No Slots Yet</h4>
+                <p class="text-muted">Add your first parking slot to get started</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Slot Modal -->
+<div class="modal fade" id="addSlotModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add New Parking Slot</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_slot') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="slot_number" class="form-label">Slot Number</label>
+                        <input type="text" class="form-control" id="slot_number" name="slot_number" 
+                               placeholder="e.g., A1, B2, VIP1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="slot_type" class="form-label">Slot Type</label>
+                        <select class="form-select" id="slot_type" name="slot_type" required>
+                            <option value="Regular">Regular</option>
+                            <option value="VIP">VIP</option>
+                            <option value="Handicapped">Handicapped</option>
+                            <option value="EV Charging">EV Charging</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="floor" class="form-label">Floor</label>
+                        <select class="form-select" id="floor" name="floor" required>
+                            {% for i in range(1, 11) %}
+                                <option value="{{ i }}">Floor {{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Add Slot
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

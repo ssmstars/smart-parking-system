@@ -1,0 +1,12 @@
+# Requirements file for Smart Parking System - Web Version
+
+# Flask Web Framework
+Flask==3.0.0
+
+# Python Version: 3.7+
+
+# Note: The following are built-in with Python:
+# - sqlite3 (database)
+# - datetime (date/time handling)
+# - re (regular expressions)
+# - os (file operations)
